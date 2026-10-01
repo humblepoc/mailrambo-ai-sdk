@@ -1,0 +1,26 @@
+{
+  "name": "mailrambo-ai-sdk",
+  "version": "0.1.0",
+  "description": "MailRambo email-quality tools for Vercel AI SDK with free defaults and bounded paid verification.",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": { ".": { "types": "./index.d.ts", "default": "./index.js" } },
+  "files": ["index.js", "index.d.ts", "README.md", "LICENSE"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": { "mailrambo": "0.2.1" },
+  "peerDependencies": { "ai": "7.0.126", "zod": "^4.1.8" },
+  "devDependencies": { "ai": "7.0.126", "zod": "4.5.4", "typescript": "6.0.3", "@types/node": "^22.0.0" },
+  "license": "MIT",
+  "author": "iodevz <hello@mailrambo.com>",
+  "homepage": "https://github.com/humblepoc/mailrambo-ai-sdk#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/humblepoc/mailrambo-ai-sdk.git" },
+  "bugs": { "url": "https://github.com/humblepoc/mailrambo-ai-sdk/issues" },
+  "keywords": ["ai-sdk", "mailrambo", "email-verification", "tools", "signup", "agents"],
+  "publishConfig": { "access": "public" }
+}

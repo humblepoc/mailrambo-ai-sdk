@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MailRambo AI SDK tools — setup, free defaults and spending controls</title>
+  <meta name="description" content="Integrate MailRambo email screening with Vercel AI SDK. Free default tools, typed results and explicit paid-verification approval and attempt limits.">
+  <style>
+    body{font:17px/1.65 system-ui,sans-serif;color:#172033;background:#f7f9fc;margin:0}main{max-width:880px;margin:auto;padding:32px 20px 80px}h1{font-size:2.2rem;line-height:1.2}h2{margin-top:2.5rem}a{color:#4b38c5}pre{white-space:pre;overflow:auto;background:#162033;color:#f1f5ff;padding:20px;border-radius:12px;font-size:14px}code{font-family:ui-monospace,monospace}.notice{background:#e9e5ff;padding:18px;border-radius:12px}table{border-collapse:collapse;width:100%;display:block;overflow:auto}td,th{border:1px solid #ccd4e0;padding:10px;text-align:left}li{margin:.5em 0}
+  </style>
+</head>
+<body><main>
+  <p><a href="https://www.mailrambo.com">MailRambo</a> · <a href="https://github.com/humblepoc/mailrambo-ai-sdk">Source and tests</a></p>
+  <h1>Email-quality tools for Vercel AI SDK agents</h1>
+  <p>MailRambo AI SDK 0.1.0 adds server-side signup screening and credit inspection. Tested with <strong>ai 7.0.126</strong>, Zod 4.5.4, mailrambo 0.2.1 and Node 22.23.3/26.7.0. No Vercel endorsement or registry acceptance is implied.</p>
+  <div class="notice"><strong>Free by default:</strong> screening and account inspection consume no MailRambo verification credits. There is no separate package fee or required hosted wrapper. Model inference, app hosting and optional full mailbox checks can cost money separately. All package tests use mock models and requests.</div>
+  <h2>Install and set up</h2>
+  <p>Check your installed AI SDK version before changing an existing app. The peer requires 7.0.126; do not blindly upgrade or force a conflict. Install the published package in a compatible project:</p>
+  <pre><code>npm install mailrambo-ai-sdk@0.1.0 ai@7.0.126 zod@4.5.4</code></pre>
+  <p>Create a dedicated <a href="https://www.mailrambo.com/api-keys">MailRambo API key</a>. Store it as <code>MAILRAMBO_API_KEY</code> on your server, never in a browser-exposed variable or model input.</p>
+  <h2>Use native tools in your agent</h2>
+  <pre><code>import { generateText, isStepCount } from 'ai';
+import { mailramboTools } from 'mailrambo-ai-sdk';
+
+const { text } = await generateText({
+  model: 'openai/gpt-5-mini', // Provider/gateway access; inference may be billed.
+  prompt: 'Screen jane@example.com for signup problems; explain whether the mailbox was checked.',
+  tools: mailramboTools(), // Reads server-side MAILRAMBO_API_KEY.
+  stopWhen: isStepCount(2),
+});
+console.log(text);</code></pre>
+  <p>Do not run the live model example on a $0 testing budget. The repository's real AI SDK loop tests use <code>MockLanguageModelV4</code>, not paid inference. You can also call a tool directly from trusted code without any model:</p>
+  <pre><code>const tools = mailramboTools();
+const result = await tools.screenSignupEmail.execute(
+  { email: 'jane@example.com' },
+  { toolCallId: 'server-screen-1', messages: [] },
+);</code></pre>
+  <p>This calls the free MailRambo API; API authentication/rate limits and your hosting/network policies apply. Inject <code>fetch</code> fixtures for completely offline tests.</p>
+  <h2>Understand the results</h2>
+  <table><thead><tr><th>Tool/result</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td>screenSignupEmail</td><td>Syntax, typo, disposable and mail-domain checks. false for known failures, null for no problem found. mailboxChecked is always false.</td></tr>
+    <tr><td>checkCredits</td><td>Free plan/credit inspection; does not buy credits or authorize spending.</td></tr>
+    <tr><td>ok:false</td><td>Sanitized API/network/timeout/invalid-response error. No successful deliverability claim.</td></tr>
+  </tbody></table>
+  <p>Fast screening never confirms mailbox existence, ownership or identity. Both live and test keys run real fast checks; full test-key checks are simulated. The tools do not send mail or create accounts. Your app chooses signup behavior when screening is unavailable; do not confuse an unavailable result with a pass. Keep email confirmation, CAPTCHA and rate limits. For a fixed Better Auth signup hook, see the <a href="https://www.mailrambo.com/blog/block-disposable-emails-better-auth">separate Better Auth guide</a>.</p>
+  <h2>Optional paid verification is developer-controlled</h2>
+  <p>Omit this configuration for $0 verification-credit usage. It cannot be enabled by model inputs:</p>
+  <pre><code>const tools = mailramboTools({
+  paidVerification: { maxChecks: 2, timeoutMs: 10000 },
+}); // Adds verifyMailbox with needsApproval:true.</code></pre>
+  <ul>
+    <li>Full verification can consume one credit; results are strict, with catch-all and uncertain mailboxes not confirmed.</li>
+    <li>AI SDK asks for approval before paid execution. Direct execute calls bypass that loop: the caller must enforce approval.</li>
+    <li>The cap is per toolset instance in memory, not a durable/global account budget. Recreating instances or running other workers resets or duplicates it. Hosts must enforce shared policy where needed.</li>
+    <li>Requests reserve a slot before awaiting RPC; parallel calls cannot exceed the instance cap. Errors/timeouts retain the reservation conservatively. No automatic retries.</li>
+    <li>Model and hosting bills are not controlled by maxChecks. No dollar-budget or identity/consent guarantee is made.</li>
+  </ul>
+  <h2>Options and privacy</h2>
+  <p><code>apiKey</code> defaults to the server environment. <code>fastTimeoutMs</code> defaults to 2000; optional full timeout defaults to 10000ms. <code>fetch</code> must honor AbortSignal. Missing/invalid configuration throws at startup; remote errors are returned as ok:false. Timeouts do not guarantee total agent latency.</p>
+  <p>Email addresses are transmitted to MailRambo over HTTPS and may appear in your model/app logs. Review data-sharing and logging policies. This package never logs keys/addresses or exposes raw upstream error bodies. It does not perform contact discovery, send emails, change billing or automatically create accounts.</p>
+  <h2>Testing and support</h2>
+  <pre><code>npm ci --ignore-scripts
+npm test
+npm run typecheck
+npm run pack:check</code></pre>
+  <p>Tests cover real AI SDK mock loops, approval-before-RPC, schemas, response safety, no retries and concurrent paid limits. See the <a href="https://github.com/humblepoc/mailrambo-ai-sdk#readme">full README</a>, <a href="https://github.com/humblepoc/mailrambo-ai-sdk/issues">issue tracker</a>, <a href="https://www.mailrambo.com/developers">API docs</a> and <a href="https://www.mailrambo.com/pricing">pricing</a>. MIT licensed.</p>
+</main></body>
+</html>
